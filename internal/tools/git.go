@@ -120,15 +120,28 @@ func GitCommit(args map[string]interface{}) (interface{}, error) {
 // GitAdd stages files for commit
 func GitAdd(args map[string]interface{}) (interface{}, error) {
 	files, ok := args["files"].(string)
-	if !ok {
+	if !ok || files == "" {
 		files = "."
 	}
 
 	workDir, _ := args["workdir"].(string)
 
-	// Use git add with the files parameter directly to properly handle spaces
-	// The files parameter should be space-separated, and git will handle them
-	cmd := exec.Command("git", "add", "--", files)
+	// Build git add command
+	// For "." or single file, pass directly
+	// For multiple files, split and add them individually
+	var cmd *exec.Cmd
+	if files == "." {
+		cmd = exec.Command("git", "add", ".")
+	} else {
+		// Build command with multiple arguments for safety
+		args := []string{"add", "--"}
+		// Split on spaces but treat this as a simple space-separated list
+		// Users should pass "." or single paths for files with spaces
+		fileList := strings.Split(files, " ")
+		args = append(args, fileList...)
+		cmd = exec.Command("git", args...)
+	}
+
 	if workDir != "" {
 		cmd.Dir = workDir
 	}

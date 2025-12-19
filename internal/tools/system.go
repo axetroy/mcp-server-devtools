@@ -2,6 +2,7 @@ package tools
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"runtime"
 )
@@ -20,13 +21,12 @@ func GetSystemInfo(args map[string]interface{}) (interface{}, error) {
 
 // GetHostname returns the system hostname
 func GetHostname(args map[string]interface{}) (interface{}, error) {
-	cmd := exec.Command("hostname")
-	output, err := cmd.Output()
+	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get hostname: %w", err)
 	}
 
-	return string(output), nil
+	return hostname, nil
 }
 
 // GetDiskUsage returns disk usage information
