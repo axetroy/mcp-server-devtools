@@ -1,3 +1,3 @@
-module github.com/axetroy/go-cli-boilerplate
+module github.com/axetroy/mcp-devtools
 
-go 1.15
+go 1.21
