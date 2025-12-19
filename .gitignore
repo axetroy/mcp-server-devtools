@@ -17,5 +17,5 @@
 .idea
 dist
 
-# Built binary
-mcp-devtools
+# Built binary (in root only)
+/mcp-devtools
