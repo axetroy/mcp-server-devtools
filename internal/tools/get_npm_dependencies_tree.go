@@ -18,8 +18,8 @@ const (
 	npmRegistryTimeout = 30 * time.Second
 )
 
-// npmPackageInput represents the input for npm dependencies analysis tool
-type npmPackageInput struct {
+// getNpmDependenciesTreeInput represents the input for npm dependencies analysis tool
+type getNpmDependenciesTreeInput struct {
 	PackageName string `json:"package_name" jsonschema:"The npm package name to analyze (e.g., 'express', 'react', '@types/node')"`
 	Version     string `json:"version,omitempty" jsonschema:"Optional: specific version to analyze (e.g., '4.18.0'). If not provided, analyzes the latest version."`
 	MaxDepth    int    `json:"max_depth,omitempty" jsonschema:"Optional: maximum depth to traverse the dependency tree (default: 5, max: 10)."`
@@ -36,8 +36,8 @@ type DependencyNode struct {
 	Error        string                     `json:"error,omitempty" jsonschema:"Error message if package info couldn't be fetched"`
 }
 
-// npmPackageOutput represents the analyzed npm package information
-type npmPackageOutput struct {
+// getNpmDependenciesTreeOutput represents the analyzed npm package information
+type getNpmDependenciesTreeOutput struct {
 	Name              string          `json:"name" jsonschema:"Package name"`
 	Version           string          `json:"version" jsonschema:"Package version analyzed"`
 	Description       string          `json:"description" jsonschema:"Package description"`
@@ -76,8 +76,8 @@ type npmVersionDetails struct {
 	PeerDependencies map[string]string `json:"peerDependencies"`
 }
 
-// NpmDependenciesAnalyze fetches and analyzes npm package information and builds a complete dependency tree
-func NpmDependenciesAnalyze(ctx context.Context, req *mcp.CallToolRequest, input npmPackageInput) (*mcp.CallToolResult, *npmPackageOutput, error) {
+// GetNpmDependenciesTree fetches and analyzes npm package information and builds a complete dependency tree
+func GetNpmDependenciesTree(ctx context.Context, req *mcp.CallToolRequest, input getNpmDependenciesTreeInput) (*mcp.CallToolResult, *getNpmDependenciesTreeOutput, error) {
 	if input.PackageName == "" {
 		return nil, nil, fmt.Errorf("package_name is required")
 	}
@@ -158,7 +158,7 @@ func NpmDependenciesAnalyze(ctx context.Context, req *mcp.CallToolRequest, input
 		treeJSON = json.RawMessage("{}")
 	}
 
-	output := &npmPackageOutput{
+	output := &getNpmDependenciesTreeOutput{
 		Name:              registryData.Name,
 		Version:           versionToAnalyze,
 		Description:       description,

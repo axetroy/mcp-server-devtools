@@ -8,17 +8,17 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func TestNpmDependenciesAnalyze(t *testing.T) {
+func TestGetNpmDependenciesTree(t *testing.T) {
 	ctx := context.Background()
 	req := &mcp.CallToolRequest{}
 
 	// Test with a well-known package
-	input := npmPackageInput{
+	input := getNpmDependenciesTreeInput{
 		PackageName: "express",
 		MaxDepth:    2, // Limit depth for testing
 	}
 
-	_, output, err := NpmDependenciesAnalyze(ctx, req, input)
+	_, output, err := GetNpmDependenciesTree(ctx, req, input)
 	if err != nil {
 		t.Fatalf("Failed to analyze express package: %v", err)
 	}
@@ -59,17 +59,17 @@ func TestNpmDependenciesAnalyze(t *testing.T) {
 	t.Logf("Description: %s", output.Description)
 }
 
-func TestNpmDependenciesAnalyzeWithVersion(t *testing.T) {
+func TestGetNpmDependenciesTreeWithVersion(t *testing.T) {
 	ctx := context.Background()
 	req := &mcp.CallToolRequest{}
 
 	// Test with a specific version
-	input := npmPackageInput{
+	input := getNpmDependenciesTreeInput{
 		PackageName: "lodash",
 		Version:     "4.17.21",
 	}
 
-	_, output, err := NpmDependenciesAnalyze(ctx, req, input)
+	_, output, err := GetNpmDependenciesTree(ctx, req, input)
 	if err != nil {
 		t.Fatalf("Failed to analyze lodash package: %v", err)
 	}
@@ -90,47 +90,47 @@ func TestNpmDependenciesAnalyzeWithVersion(t *testing.T) {
 	t.Logf("Latest: %s", output.LatestVersion)
 }
 
-func TestNpmDependenciesAnalyzeNotFound(t *testing.T) {
+func TestGetNpmDependenciesTreeNotFound(t *testing.T) {
 	ctx := context.Background()
 	req := &mcp.CallToolRequest{}
 
 	// Test with a non-existent package
-	input := npmPackageInput{
+	input := getNpmDependenciesTreeInput{
 		PackageName: "this-package-definitely-does-not-exist-12345",
 	}
 
-	_, _, err := NpmDependenciesAnalyze(ctx, req, input)
+	_, _, err := GetNpmDependenciesTree(ctx, req, input)
 	if err == nil {
 		t.Error("Expected error for non-existent package, got nil")
 	}
 }
 
-func TestNpmDependenciesAnalyzeEmptyPackageName(t *testing.T) {
+func TestGetNpmDependenciesTreeEmptyPackageName(t *testing.T) {
 	ctx := context.Background()
 	req := &mcp.CallToolRequest{}
 
 	// Test with empty package name
-	input := npmPackageInput{
+	input := getNpmDependenciesTreeInput{
 		PackageName: "",
 	}
 
-	_, _, err := NpmDependenciesAnalyze(ctx, req, input)
+	_, _, err := GetNpmDependenciesTree(ctx, req, input)
 	if err == nil {
 		t.Error("Expected error for empty package name, got nil")
 	}
 }
 
-func TestNpmDependenciesAnalyzeScopedPackage(t *testing.T) {
+func TestGetNpmDependenciesTreeScopedPackage(t *testing.T) {
 	ctx := context.Background()
 	req := &mcp.CallToolRequest{}
 
 	// Test with a scoped package
-	input := npmPackageInput{
+	input := getNpmDependenciesTreeInput{
 		PackageName: "@types/node",
 		MaxDepth:    1, // Limit depth for testing
 	}
 
-	_, output, err := NpmDependenciesAnalyze(ctx, req, input)
+	_, output, err := GetNpmDependenciesTree(ctx, req, input)
 	if err != nil {
 		t.Fatalf("Failed to analyze @types/node package: %v", err)
 	}
@@ -146,17 +146,17 @@ func TestNpmDependenciesAnalyzeScopedPackage(t *testing.T) {
 	t.Logf("Scoped Package: %s@%s", output.Name, output.Version)
 }
 
-func TestNpmDependenciesAnalyzeDependencyTree(t *testing.T) {
+func TestGetNpmDependenciesTreeDependencyTree(t *testing.T) {
 	ctx := context.Background()
 	req := &mcp.CallToolRequest{}
 
 	// Test with a package that has known dependencies
-	input := npmPackageInput{
+	input := getNpmDependenciesTreeInput{
 		PackageName: "lodash",
 		MaxDepth:    3,
 	}
 
-	_, output, err := NpmDependenciesAnalyze(ctx, req, input)
+	_, output, err := GetNpmDependenciesTree(ctx, req, input)
 	if err != nil {
 		t.Fatalf("Failed to analyze lodash package: %v", err)
 	}

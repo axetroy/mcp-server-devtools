@@ -34,7 +34,7 @@ This MCP server provides the following tools:
 
 ### 📦 Package Management Utilities
 
-- **`npm_dependencies_analyze`** - Analyze npm package information and build complete dependency tree
+- **`get_npm_dependencies_tree`** - Get npm package dependency tree
   - **Input:** Package name (e.g., `express`, `react`, `@types/node`), optional version, and optional max depth
   - **Output:** Package metadata and complete dependency tree with nested dependencies
   - **Features:** 
@@ -206,7 +206,7 @@ Response:
 </details>
 
 <details>
-<summary><strong>NPM Package Analysis</strong></summary>
+<summary><strong>NPM Package Dependency Tree</strong></summary>
 
 Request:
 ```json
@@ -215,7 +215,7 @@ Request:
   "id": 3,
   "method": "tools/call",
   "params": {
-    "name": "npm_dependencies_analyze",
+    "name": "get_npm_dependencies_tree",
     "arguments": {
       "package_name": "express",
       "max_depth": 3
@@ -287,7 +287,7 @@ You can also analyze a specific version and control depth:
   "id": 4,
   "method": "tools/call",
   "params": {
-    "name": "npm_dependencies_analyze",
+    "name": "get_npm_dependencies_tree",
     "arguments": {
       "package_name": "express",
       "version": "4.18.0",

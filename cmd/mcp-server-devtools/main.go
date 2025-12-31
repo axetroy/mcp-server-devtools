@@ -60,9 +60,9 @@ func main() {
 	}, tools.OpenInBrowser)
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "npm_dependencies_analyze",
-		Description: "Analyze npm package information and build complete dependency tree. Recursively fetches all dependencies (not just direct ones), tracks circular dependencies, and returns a full tree structure with configurable depth limit.",
-	}, tools.NpmDependenciesAnalyze)
+		Name:        "get_npm_dependencies_tree",
+		Description: "Get npm package dependency tree. Recursively fetches all dependencies (not just direct ones), tracks circular dependencies, and returns a full tree structure with configurable depth limit.",
+	}, tools.GetNpmDependenciesTree)
 
 	log.Println("MCP server started (version:", version, "commit:", commit, "date:", date, "builtBy:", builtBy+")")
 
