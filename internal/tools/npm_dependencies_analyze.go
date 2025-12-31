@@ -22,7 +22,7 @@ const (
 type npmPackageInput struct {
 	PackageName string `json:"package_name" jsonschema:"The npm package name to analyze (e.g., 'express', 'react', '@types/node')"`
 	Version     string `json:"version,omitempty" jsonschema:"Optional: specific version to analyze (e.g., '4.18.0'). If not provided, analyzes the latest version."`
-	MaxDepth    int    `json:"max_depth,omitempty" jsonschema:"Optional: maximum depth to traverse the dependency tree (default: 5, max: 10). Set to 0 for unlimited depth (not recommended)."`
+	MaxDepth    int    `json:"max_depth,omitempty" jsonschema:"Optional: maximum depth to traverse the dependency tree (default: 5, max: 10)."`
 }
 
 // DependencyNode represents a node in the dependency tree
@@ -32,6 +32,8 @@ type DependencyNode struct {
 	VersionRange string                     `json:"version_range,omitempty" jsonschema:"Version range specified by parent"`
 	Dependencies map[string]*DependencyNode `json:"dependencies,omitempty" jsonschema:"Nested dependencies"`
 	Circular     bool                       `json:"circular,omitempty" jsonschema:"Whether this is a circular dependency reference"`
+	DepthLimited bool                       `json:"depth_limited,omitempty" jsonschema:"Whether traversal stopped due to depth limit"`
+	Error        string                     `json:"error,omitempty" jsonschema:"Error message if package info couldn't be fetched"`
 }
 
 // npmPackageOutput represents the analyzed npm package information
@@ -80,9 +82,9 @@ func NpmDependenciesAnalyze(ctx context.Context, req *mcp.CallToolRequest, input
 		return nil, nil, fmt.Errorf("package_name is required")
 	}
 
-	// Set default max depth if not specified
+	// Set default max depth if not specified or cap at maximum
 	maxDepth := input.MaxDepth
-	if maxDepth == 0 {
+	if maxDepth <= 0 {
 		maxDepth = 5 // Default depth
 	} else if maxDepth > 10 {
 		maxDepth = 10 // Cap at 10 to prevent excessive API calls
@@ -232,22 +234,22 @@ func buildDependencyTree(client *http.Client, packageName, versionRange string, 
 		return &DependencyNode{
 			Name:         packageName,
 			VersionRange: versionRange,
-			Version:      "...", // Indicate depth limit reached
+			DepthLimited: true,
 		}, currentDepth
 	}
 
 	// Mark as visited
 	visited[packageKey] = true
-	defer func() { delete(visited, packageKey) }()
+	defer func(key string) { delete(visited, key) }(packageKey)
 
 	// Fetch package info
 	registryData, resolvedVersion, err := fetchPackageInfo(client, packageName, "")
 	if err != nil {
-		// If we can't fetch the package, return a node with limited info
+		// If we can't fetch the package, return a node with error info
 		return &DependencyNode{
 			Name:         packageName,
 			VersionRange: versionRange,
-			Version:      "error",
+			Error:        err.Error(),
 		}, currentDepth
 	}
 
@@ -257,6 +259,7 @@ func buildDependencyTree(client *http.Client, packageName, versionRange string, 
 			Name:         packageName,
 			VersionRange: versionRange,
 			Version:      resolvedVersion,
+			Error:        "version not found in registry",
 		}, currentDepth
 	}
 
