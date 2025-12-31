@@ -49,6 +49,11 @@ func main() {
 		Description: "List files in the Download directory that haven't been modified in a long time.",
 	}, tools.ListOldDownloads)
 
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_installed_apps",
+		Description: "List installed applications on the system (currently supports macOS only).",
+	}, tools.ListInstalledApps)
+
 	log.Println("MCP server started (version:", version, "commit:", commit, "date:", date, "builtBy:", builtBy+")")
 
 	// Run the server over stdin/stdout
