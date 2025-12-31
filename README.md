@@ -34,10 +34,15 @@ This MCP server provides the following tools:
 
 ### 📦 Package Management Utilities
 
-- **`npm_dependencies_analyze`** - Analyze npm package information and dependencies
-  - **Input:** Package name (e.g., `express`, `react`, `@types/node`) and optional version
-  - **Output:** Package metadata, dependencies, dev dependencies, peer dependencies, version information
-  - **Features:** Fetches data from the official npm registry, analyzes latest version by default or specific version
+- **`npm_dependencies_analyze`** - Analyze npm package information and build complete dependency tree
+  - **Input:** Package name (e.g., `express`, `react`, `@types/node`), optional version, and optional max depth
+  - **Output:** Package metadata and complete dependency tree with nested dependencies
+  - **Features:** 
+    - Builds complete dependency tree recursively (not just direct dependencies)
+    - Tracks circular dependencies
+    - Configurable depth limit (default: 5, max: 10)
+    - Shows total unique dependencies count
+    - Fetches data from the official npm registry
   - **Supports:** Scoped packages with proper URL encoding
 
 ### 📁 File System Utilities
@@ -212,13 +217,14 @@ Request:
   "params": {
     "name": "npm_dependencies_analyze",
     "arguments": {
-      "package_name": "express"
+      "package_name": "express",
+      "max_depth": 3
     }
   }
 }
 ```
 
-Response:
+Response (simplified for brevity):
 ```json
 {
   "jsonrpc": "2.0",
@@ -230,45 +236,51 @@ Response:
     "license": "MIT",
     "homepage": "http://expressjs.com/",
     "repository": "https://github.com/expressjs/express",
-    "dependencies": {
-      "accepts": "~1.3.8",
-      "body-parser": "2.1.0",
-      "content-disposition": "0.5.5",
-      "cookie": "0.7.2",
-      "cookie-signature": "1.2.3",
-      "debug": "2.6.9",
-      "escape-html": "~1.0.3",
-      "etag": "~1.8.1",
-      "finalhandler": "1.3.1",
-      "methods": "~1.1.2",
-      "mime-types": "~2.1.18",
-      "on-finished": "2.4.1",
-      "parseurl": "~1.3.3",
-      "path-to-regexp": "0.1.12",
-      "proxy-addr": "~2.0.7",
-      "qs": "6.13.2",
-      "range-parser": "~1.2.1",
-      "safe-buffer": "5.2.1",
-      "send": "1.1.1",
-      "serve-static": "2.1.2",
-      "setprototypeof": "1.2.0",
-      "statuses": "2.0.1",
-      "type-is": "~1.6.18",
-      "utils-merge": "1.0.1",
-      "vary": "~1.1.2"
-    },
-    "dev_dependencies": {},
-    "peer_dependencies": {},
-    "dependency_count": 28,
     "author": "TJ Holowaychuk <tj@vision-media.ca>",
     "keywords": ["express", "framework", "sinatra", "web", "http", "rest", "restful", "router", "app", "api"],
     "latest_version": "5.2.1",
-    "publish_time": "2024-12-25T14:49:15.000Z"
+    "publish_time": "2024-12-25T14:49:15.000Z",
+    "dependency_tree": {
+      "accepts": {
+        "name": "accepts",
+        "version": "1.3.8",
+        "version_range": "~1.3.8",
+        "dependencies": {
+          "mime-types": {
+            "name": "mime-types",
+            "version": "2.1.35",
+            "version_range": "~2.1.34",
+            "dependencies": {
+              "mime-db": {
+                "name": "mime-db",
+                "version": "1.52.0",
+                "version_range": "1.52.0"
+              }
+            }
+          },
+          "negotiator": {
+            "name": "negotiator",
+            "version": "0.6.3",
+            "version_range": "0.6.3"
+          }
+        }
+      },
+      "body-parser": {
+        "name": "body-parser",
+        "version": "2.1.0",
+        "version_range": "2.1.0",
+        "dependencies": {
+          "...": "..."
+        }
+      }
+    },
+    "total_dependencies": 43,
+    "tree_depth": 3
   }
 }
 ```
 
-You can also analyze a specific version:
+You can also analyze a specific version and control depth:
 ```json
 {
   "jsonrpc": "2.0",
@@ -278,7 +290,8 @@ You can also analyze a specific version:
     "name": "npm_dependencies_analyze",
     "arguments": {
       "package_name": "express",
-      "version": "4.18.0"
+      "version": "4.18.0",
+      "max_depth": 2
     }
   }
 }

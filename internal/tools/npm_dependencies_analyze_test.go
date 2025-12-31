@@ -14,6 +14,7 @@ func TestNpmDependenciesAnalyze(t *testing.T) {
 	// Test with a well-known package
 	input := npmPackageInput{
 		PackageName: "express",
+		MaxDepth:    2, // Limit depth for testing
 	}
 
 	_, output, err := NpmDependenciesAnalyze(ctx, req, input)
@@ -41,14 +42,19 @@ func TestNpmDependenciesAnalyze(t *testing.T) {
 		t.Error("Description should not be empty")
 	}
 
-	if output.Dependencies == nil {
-		t.Error("Dependencies map should not be nil")
+	if output.DependencyTree == nil {
+		t.Error("DependencyTree should not be nil")
+	}
+
+	if output.TotalDependencies == 0 {
+		t.Error("TotalDependencies should be greater than 0")
 	}
 
 	t.Logf("Package: %s", output.Name)
 	t.Logf("Version: %s", output.Version)
 	t.Logf("Latest: %s", output.LatestVersion)
-	t.Logf("Dependencies: %d", output.DependencyCount)
+	t.Logf("Total Dependencies: %d", output.TotalDependencies)
+	t.Logf("Tree Depth: %d", output.TreeDepth)
 	t.Logf("Description: %s", output.Description)
 }
 
@@ -120,6 +126,7 @@ func TestNpmDependenciesAnalyzeScopedPackage(t *testing.T) {
 	// Test with a scoped package
 	input := npmPackageInput{
 		PackageName: "@types/node",
+		MaxDepth:    1, // Limit depth for testing
 	}
 
 	_, output, err := NpmDependenciesAnalyze(ctx, req, input)
@@ -136,4 +143,42 @@ func TestNpmDependenciesAnalyzeScopedPackage(t *testing.T) {
 	}
 
 	t.Logf("Scoped Package: %s@%s", output.Name, output.Version)
+}
+
+func TestNpmDependenciesAnalyzeDependencyTree(t *testing.T) {
+	ctx := context.Background()
+	req := &mcp.CallToolRequest{}
+
+	// Test with a package that has known dependencies
+	input := npmPackageInput{
+		PackageName: "lodash",
+		MaxDepth:    3,
+	}
+
+	_, output, err := NpmDependenciesAnalyze(ctx, req, input)
+	if err != nil {
+		t.Fatalf("Failed to analyze lodash package: %v", err)
+	}
+
+	if output == nil {
+		t.Fatal("Output should not be nil")
+	}
+
+	if output.DependencyTree == nil {
+		t.Error("DependencyTree should not be nil")
+	}
+
+	t.Logf("Package: %s@%s", output.Name, output.Version)
+	t.Logf("Total Dependencies: %d", output.TotalDependencies)
+	t.Logf("Tree Depth: %d", output.TreeDepth)
+
+	// Verify tree structure
+	for depName, depNode := range output.DependencyTree {
+		t.Logf("  Dependency: %s (%s) -> version %s", depName, depNode.VersionRange, depNode.Version)
+		if depNode.Dependencies != nil {
+			for subDepName, subDepNode := range depNode.Dependencies {
+				t.Logf("    Sub-dependency: %s (%s) -> version %s", subDepName, subDepNode.VersionRange, subDepNode.Version)
+			}
+		}
+	}
 }

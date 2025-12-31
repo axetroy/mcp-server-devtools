@@ -22,24 +22,33 @@ const (
 type npmPackageInput struct {
 	PackageName string `json:"package_name" jsonschema:"The npm package name to analyze (e.g., 'express', 'react', '@types/node')"`
 	Version     string `json:"version,omitempty" jsonschema:"Optional: specific version to analyze (e.g., '4.18.0'). If not provided, analyzes the latest version."`
+	MaxDepth    int    `json:"max_depth,omitempty" jsonschema:"Optional: maximum depth to traverse the dependency tree (default: 5, max: 10). Set to 0 for unlimited depth (not recommended)."`
+}
+
+// DependencyNode represents a node in the dependency tree
+type DependencyNode struct {
+	Name         string                     `json:"name" jsonschema:"Package name"`
+	Version      string                     `json:"version" jsonschema:"Resolved version"`
+	VersionRange string                     `json:"version_range,omitempty" jsonschema:"Version range specified by parent"`
+	Dependencies map[string]*DependencyNode `json:"dependencies,omitempty" jsonschema:"Nested dependencies"`
+	Circular     bool                       `json:"circular,omitempty" jsonschema:"Whether this is a circular dependency reference"`
 }
 
 // npmPackageOutput represents the analyzed npm package information
 type npmPackageOutput struct {
-	Name             string            `json:"name" jsonschema:"Package name"`
-	Version          string            `json:"version" jsonschema:"Package version analyzed"`
-	Description      string            `json:"description" jsonschema:"Package description"`
-	License          string            `json:"license,omitempty" jsonschema:"Package license"`
-	Homepage         string            `json:"homepage,omitempty" jsonschema:"Package homepage URL"`
-	Repository       string            `json:"repository,omitempty" jsonschema:"Package repository URL"`
-	Dependencies     map[string]string `json:"dependencies,omitempty" jsonschema:"Production dependencies with their version ranges"`
-	DevDependencies  map[string]string `json:"dev_dependencies,omitempty" jsonschema:"Development dependencies with their version ranges"`
-	PeerDependencies map[string]string `json:"peer_dependencies,omitempty" jsonschema:"Peer dependencies with their version ranges"`
-	DependencyCount  int               `json:"dependency_count" jsonschema:"Total number of production dependencies"`
-	Author           string            `json:"author,omitempty" jsonschema:"Package author"`
-	Keywords         []string          `json:"keywords,omitempty" jsonschema:"Package keywords"`
-	LatestVersion    string            `json:"latest_version" jsonschema:"Latest available version of the package"`
-	PublishTime      string            `json:"publish_time,omitempty" jsonschema:"Time when this version was published"`
+	Name              string                     `json:"name" jsonschema:"Package name"`
+	Version           string                     `json:"version" jsonschema:"Package version analyzed"`
+	Description       string                     `json:"description" jsonschema:"Package description"`
+	License           string                     `json:"license,omitempty" jsonschema:"Package license"`
+	Homepage          string                     `json:"homepage,omitempty" jsonschema:"Package homepage URL"`
+	Repository        string                     `json:"repository,omitempty" jsonschema:"Package repository URL"`
+	Author            string                     `json:"author,omitempty" jsonschema:"Package author"`
+	Keywords          []string                   `json:"keywords,omitempty" jsonschema:"Package keywords"`
+	LatestVersion     string                     `json:"latest_version" jsonschema:"Latest available version of the package"`
+	PublishTime       string                     `json:"publish_time,omitempty" jsonschema:"Time when this version was published"`
+	DependencyTree    map[string]*DependencyNode `json:"dependency_tree" jsonschema:"Complete dependency tree with nested dependencies"`
+	TotalDependencies int                        `json:"total_dependencies" jsonschema:"Total number of unique dependencies (including transitive)"`
+	TreeDepth         int                        `json:"tree_depth" jsonschema:"Maximum depth of the dependency tree"`
 }
 
 // npmRegistryResponse represents the npm registry API response structure
@@ -65,58 +74,29 @@ type npmVersionDetails struct {
 	PeerDependencies map[string]string `json:"peerDependencies"`
 }
 
-// NpmDependenciesAnalyze fetches and analyzes npm package information and its dependencies
+// NpmDependenciesAnalyze fetches and analyzes npm package information and builds a complete dependency tree
 func NpmDependenciesAnalyze(ctx context.Context, req *mcp.CallToolRequest, input npmPackageInput) (*mcp.CallToolResult, *npmPackageOutput, error) {
 	if input.PackageName == "" {
 		return nil, nil, fmt.Errorf("package_name is required")
 	}
 
-	// Construct the npm registry URL (URL encode the package name for scoped packages)
-	registryURL := fmt.Sprintf("https://registry.npmjs.org/%s", url.PathEscape(input.PackageName))
+	// Set default max depth if not specified
+	maxDepth := input.MaxDepth
+	if maxDepth == 0 {
+		maxDepth = 5 // Default depth
+	} else if maxDepth > 10 {
+		maxDepth = 10 // Cap at 10 to prevent excessive API calls
+	}
 
 	// Create HTTP client with timeout
 	client := &http.Client{
 		Timeout: npmRegistryTimeout,
 	}
 
-	// Make the request
-	resp, err := client.Get(registryURL)
+	// Fetch package metadata
+	registryData, versionToAnalyze, err := fetchPackageInfo(client, input.PackageName, input.Version)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to fetch package information: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == 404 {
-		return nil, nil, fmt.Errorf("package '%s' not found in npm registry", input.PackageName)
-	}
-
-	if resp.StatusCode != 200 {
-		return nil, nil, fmt.Errorf("npm registry returned status code %d", resp.StatusCode)
-	}
-
-	// Read and parse the response
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	var registryData npmRegistryResponse
-	if err := json.Unmarshal(body, &registryData); err != nil {
-		return nil, nil, fmt.Errorf("failed to parse npm registry response: %w", err)
-	}
-
-	// Determine which version to analyze
-	versionToAnalyze := input.Version
-	if versionToAnalyze == "" {
-		// Use the latest version
-		if registryData.DistTags != nil {
-			if latestVersion, ok := registryData.DistTags["latest"]; ok {
-				versionToAnalyze = latestVersion
-			}
-		}
-		if versionToAnalyze == "" {
-			return nil, nil, fmt.Errorf("no latest version found for package '%s'", input.PackageName)
-		}
+		return nil, nil, err
 	}
 
 	// Get the specific version details
@@ -125,65 +105,198 @@ func NpmDependenciesAnalyze(ctx context.Context, req *mcp.CallToolRequest, input
 		return nil, nil, fmt.Errorf("version '%s' not found for package '%s'", versionToAnalyze, input.PackageName)
 	}
 
-	// Extract license information
+	// Extract metadata
 	license := extractLicense(registryData.License)
-
-	// Extract repository URL
 	repoURL := extractRepository(registryData.Repository)
-
-	// Extract author information
 	author := extractAuthor(registryData.Author)
 
-	// Get publish time
 	publishTime := ""
 	if t, ok := registryData.Time[versionToAnalyze]; ok {
 		publishTime = t
 	}
 
-	// Build the output
 	latestVersion := ""
 	if registryData.DistTags != nil {
 		latestVersion = registryData.DistTags["latest"]
 	}
 
-	// Use version-specific description, fallback to package description if not available
 	description := versionDetails.Description
 	if description == "" {
 		description = registryData.Description
 	}
 
-	output := &npmPackageOutput{
-		Name:             registryData.Name,
-		Version:          versionToAnalyze,
-		Description:      description,
-		License:          license,
-		Homepage:         registryData.Homepage,
-		Repository:       repoURL,
-		Dependencies:     versionDetails.Dependencies,
-		DevDependencies:  versionDetails.DevDependencies,
-		PeerDependencies: versionDetails.PeerDependencies,
-		DependencyCount:  len(versionDetails.Dependencies),
-		Author:           author,
-		Keywords:         registryData.Keywords,
-		LatestVersion:    latestVersion,
-		PublishTime:      publishTime,
+	// Build dependency tree
+	visited := make(map[string]bool)
+	dependencyTree := make(map[string]*DependencyNode)
+	var maxTreeDepth int
+
+	for depName, depVersion := range versionDetails.Dependencies {
+		node, depth := buildDependencyTree(client, depName, depVersion, visited, 1, maxDepth)
+		if node != nil {
+			dependencyTree[depName] = node
+			if depth > maxTreeDepth {
+				maxTreeDepth = depth
+			}
+		}
 	}
 
-	// Initialize empty maps if nil
-	if output.Dependencies == nil {
-		output.Dependencies = make(map[string]string)
+	// Count total unique dependencies
+	totalDeps := countUniqueDependencies(dependencyTree, make(map[string]bool))
+
+	output := &npmPackageOutput{
+		Name:              registryData.Name,
+		Version:           versionToAnalyze,
+		Description:       description,
+		License:           license,
+		Homepage:          registryData.Homepage,
+		Repository:        repoURL,
+		Author:            author,
+		Keywords:          registryData.Keywords,
+		LatestVersion:     latestVersion,
+		PublishTime:       publishTime,
+		DependencyTree:    dependencyTree,
+		TotalDependencies: totalDeps,
+		TreeDepth:         maxTreeDepth,
 	}
-	if output.DevDependencies == nil {
-		output.DevDependencies = make(map[string]string)
-	}
-	if output.PeerDependencies == nil {
-		output.PeerDependencies = make(map[string]string)
-	}
+
 	if output.Keywords == nil {
 		output.Keywords = []string{}
 	}
+	if output.DependencyTree == nil {
+		output.DependencyTree = make(map[string]*DependencyNode)
+	}
 
 	return nil, output, nil
+}
+
+// fetchPackageInfo fetches package information from npm registry
+func fetchPackageInfo(client *http.Client, packageName, version string) (*npmRegistryResponse, string, error) {
+	registryURL := fmt.Sprintf("https://registry.npmjs.org/%s", url.PathEscape(packageName))
+
+	resp, err := client.Get(registryURL)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to fetch package information: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 404 {
+		return nil, "", fmt.Errorf("package '%s' not found in npm registry", packageName)
+	}
+
+	if resp.StatusCode != 200 {
+		return nil, "", fmt.Errorf("npm registry returned status code %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var registryData npmRegistryResponse
+	if err := json.Unmarshal(body, &registryData); err != nil {
+		return nil, "", fmt.Errorf("failed to parse npm registry response: %w", err)
+	}
+
+	// Determine which version to use
+	versionToUse := version
+	if versionToUse == "" {
+		if registryData.DistTags != nil {
+			if latestVersion, ok := registryData.DistTags["latest"]; ok {
+				versionToUse = latestVersion
+			}
+		}
+		if versionToUse == "" {
+			return nil, "", fmt.Errorf("no latest version found for package '%s'", packageName)
+		}
+	}
+
+	return &registryData, versionToUse, nil
+}
+
+// buildDependencyTree recursively builds the dependency tree for a package
+func buildDependencyTree(client *http.Client, packageName, versionRange string, visited map[string]bool, currentDepth, maxDepth int) (*DependencyNode, int) {
+	// Create a unique key for this package
+	packageKey := packageName
+
+	// Check if we've already visited this package (circular dependency)
+	if visited[packageKey] {
+		return &DependencyNode{
+			Name:         packageName,
+			VersionRange: versionRange,
+			Circular:     true,
+		}, currentDepth
+	}
+
+	// Check if we've reached max depth
+	if currentDepth >= maxDepth {
+		return &DependencyNode{
+			Name:         packageName,
+			VersionRange: versionRange,
+			Version:      "...", // Indicate depth limit reached
+		}, currentDepth
+	}
+
+	// Mark as visited
+	visited[packageKey] = true
+	defer func() { delete(visited, packageKey) }()
+
+	// Fetch package info
+	registryData, resolvedVersion, err := fetchPackageInfo(client, packageName, "")
+	if err != nil {
+		// If we can't fetch the package, return a node with limited info
+		return &DependencyNode{
+			Name:         packageName,
+			VersionRange: versionRange,
+			Version:      "error",
+		}, currentDepth
+	}
+
+	versionDetails, ok := registryData.Versions[resolvedVersion]
+	if !ok {
+		return &DependencyNode{
+			Name:         packageName,
+			VersionRange: versionRange,
+			Version:      resolvedVersion,
+		}, currentDepth
+	}
+
+	// Create node for this dependency
+	node := &DependencyNode{
+		Name:         packageName,
+		Version:      resolvedVersion,
+		VersionRange: versionRange,
+		Dependencies: make(map[string]*DependencyNode),
+	}
+
+	maxChildDepth := currentDepth
+
+	// Recursively build tree for each dependency
+	for depName, depVersion := range versionDetails.Dependencies {
+		childNode, childDepth := buildDependencyTree(client, depName, depVersion, visited, currentDepth+1, maxDepth)
+		if childNode != nil {
+			node.Dependencies[depName] = childNode
+			if childDepth > maxChildDepth {
+				maxChildDepth = childDepth
+			}
+		}
+	}
+
+	return node, maxChildDepth
+}
+
+// countUniqueDependencies counts the total number of unique dependencies in the tree
+func countUniqueDependencies(tree map[string]*DependencyNode, counted map[string]bool) int {
+	total := 0
+	for name, node := range tree {
+		if !counted[name] && !node.Circular {
+			counted[name] = true
+			total++
+			if node.Dependencies != nil {
+				total += countUniqueDependencies(node.Dependencies, counted)
+			}
+		}
+	}
+	return total
 }
 
 // extractLicense handles different license field formats

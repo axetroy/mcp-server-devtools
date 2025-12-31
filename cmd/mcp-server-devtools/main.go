@@ -61,7 +61,7 @@ func main() {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "npm_dependencies_analyze",
-		Description: "Get npm package information and analyze its dependencies. Fetches package metadata, dependencies, dev dependencies, and peer dependencies from the npm registry.",
+		Description: "Analyze npm package information and build complete dependency tree. Recursively fetches all dependencies (not just direct ones), tracks circular dependencies, and returns a full tree structure with configurable depth limit.",
 	}, tools.NpmDependenciesAnalyze)
 
 	log.Println("MCP server started (version:", version, "commit:", commit, "date:", date, "builtBy:", builtBy+")")
