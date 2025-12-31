@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -65,8 +66,8 @@ func NpmDependenciesAnalyze(ctx context.Context, req *mcp.CallToolRequest, input
 		return nil, nil, fmt.Errorf("package_name is required")
 	}
 
-	// Construct the npm registry URL
-	registryURL := fmt.Sprintf("https://registry.npmjs.org/%s", input.PackageName)
+	// Construct the npm registry URL (URL encode the package name for scoped packages)
+	registryURL := fmt.Sprintf("https://registry.npmjs.org/%s", url.PathEscape(input.PackageName))
 
 	// Create HTTP client with timeout
 	client := &http.Client{
@@ -103,9 +104,12 @@ func NpmDependenciesAnalyze(ctx context.Context, req *mcp.CallToolRequest, input
 	versionToAnalyze := input.Version
 	if versionToAnalyze == "" {
 		// Use the latest version
-		if latestVersion, ok := registryData.DistTags["latest"]; ok {
-			versionToAnalyze = latestVersion
-		} else {
+		if registryData.DistTags != nil {
+			if latestVersion, ok := registryData.DistTags["latest"]; ok {
+				versionToAnalyze = latestVersion
+			}
+		}
+		if versionToAnalyze == "" {
 			return nil, nil, fmt.Errorf("no latest version found for package '%s'", input.PackageName)
 		}
 	}
@@ -132,6 +136,11 @@ func NpmDependenciesAnalyze(ctx context.Context, req *mcp.CallToolRequest, input
 	}
 
 	// Build the output
+	latestVersion := ""
+	if registryData.DistTags != nil {
+		latestVersion = registryData.DistTags["latest"]
+	}
+
 	output := &npmPackageOutput{
 		Name:             registryData.Name,
 		Version:          versionToAnalyze,
@@ -145,7 +154,7 @@ func NpmDependenciesAnalyze(ctx context.Context, req *mcp.CallToolRequest, input
 		DependencyCount:  len(versionDetails.Dependencies),
 		Author:           author,
 		Keywords:         registryData.Keywords,
-		LatestVersion:    registryData.DistTags["latest"],
+		LatestVersion:    latestVersion,
 		PublishTime:      publishTime,
 	}
 
