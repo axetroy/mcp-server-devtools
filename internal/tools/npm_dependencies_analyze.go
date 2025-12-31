@@ -217,11 +217,8 @@ func fetchPackageInfo(client *http.Client, packageName, version string) (*npmReg
 
 // buildDependencyTree recursively builds the dependency tree for a package
 func buildDependencyTree(client *http.Client, packageName, versionRange string, visited map[string]bool, currentDepth, maxDepth int) (*DependencyNode, int) {
-	// Create a unique key for this package
-	packageKey := packageName
-
 	// Check if we've already visited this package (circular dependency)
-	if visited[packageKey] {
+	if visited[packageName] {
 		return &DependencyNode{
 			Name:         packageName,
 			VersionRange: versionRange,
@@ -239,8 +236,8 @@ func buildDependencyTree(client *http.Client, packageName, versionRange string, 
 	}
 
 	// Mark as visited
-	visited[packageKey] = true
-	defer func(key string) { delete(visited, key) }(packageKey)
+	visited[packageName] = true
+	defer delete(visited, packageName)
 
 	// Fetch package info
 	registryData, resolvedVersion, err := fetchPackageInfo(client, packageName, "")
@@ -291,10 +288,12 @@ func buildDependencyTree(client *http.Client, packageName, versionRange string, 
 func countUniqueDependencies(tree map[string]*DependencyNode, counted map[string]bool) int {
 	total := 0
 	for name, node := range tree {
-		if !counted[name] && !node.Circular {
+		// Skip if already counted or if there was an error fetching this package
+		if !counted[name] && node.Error == "" {
 			counted[name] = true
 			total++
-			if node.Dependencies != nil {
+			// Only recurse into dependencies if this isn't a circular reference
+			if !node.Circular && node.Dependencies != nil {
 				total += countUniqueDependencies(node.Dependencies, counted)
 			}
 		}
