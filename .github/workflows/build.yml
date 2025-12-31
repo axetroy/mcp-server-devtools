@@ -44,7 +44,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v2
         with:
           version: latest
-          args: release --skip-publish
+          args: release
 
   release:
     name: Release to Github
