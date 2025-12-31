@@ -54,6 +54,11 @@ func main() {
 		Description: "List installed applications on the system (currently supports macOS only).",
 	}, tools.ListInstalledApps)
 
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "open_in_browser",
+		Description: "Open a specified URL in the default web browser of the system.",
+	}, tools.OpenInBrowser)
+
 	log.Println("MCP server started (version:", version, "commit:", commit, "date:", date, "builtBy:", builtBy+")")
 
 	// Run the server over stdin/stdout
