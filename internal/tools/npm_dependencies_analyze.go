@@ -13,6 +13,11 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+const (
+	// npmRegistryTimeout is the timeout for HTTP requests to npm registry
+	npmRegistryTimeout = 30 * time.Second
+)
+
 // npmPackageInput represents the input for npm dependencies analysis tool
 type npmPackageInput struct {
 	PackageName string `json:"package_name" jsonschema:"The npm package name to analyze (e.g., 'express', 'react', '@types/node')"`
@@ -71,7 +76,7 @@ func NpmDependenciesAnalyze(ctx context.Context, req *mcp.CallToolRequest, input
 
 	// Create HTTP client with timeout
 	client := &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: npmRegistryTimeout,
 	}
 
 	// Make the request
@@ -141,10 +146,16 @@ func NpmDependenciesAnalyze(ctx context.Context, req *mcp.CallToolRequest, input
 		latestVersion = registryData.DistTags["latest"]
 	}
 
+	// Use version-specific description, fallback to package description if not available
+	description := versionDetails.Description
+	if description == "" {
+		description = registryData.Description
+	}
+
 	output := &npmPackageOutput{
 		Name:             registryData.Name,
 		Version:          versionToAnalyze,
-		Description:      versionDetails.Description,
+		Description:      description,
 		License:          license,
 		Homepage:         registryData.Homepage,
 		Repository:       repoURL,
