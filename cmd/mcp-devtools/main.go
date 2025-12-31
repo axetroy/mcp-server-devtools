@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
+	"runtime"
 	"strings"
+	"time"
 
 	colorful "github.com/lucasb-eyer/go-colorful"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -75,6 +78,15 @@ type ColorOutput struct {
 type IPAddressOutput struct {
 	Addresses []string `json:"addresses" jsonschema:"List of IP addresses"`
 	Primary   string   `json:"primary" jsonschema:"Primary IP address (first non-loopback IPv4)"`
+}
+
+type CurrentTimeOutput struct {
+	Time string `json:"time" jsonschema:"Current server time in RFC1123 format"`
+}
+
+type ListOldDownloadsOutput struct {
+	System string                `json:"system" jsonschema:"Operating system of the server"`
+	Files  []ListOldDownloadFile `json:"files" jsonschema:"List of file paths to check for old downloads"`
 }
 
 // ColorConversionTool converts CSS color values to various color formats
@@ -229,6 +241,56 @@ func GetIPAddressTool(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mc
 	}, nil
 }
 
+func GetCurrentTimeTool(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, *CurrentTimeOutput, error) {
+	currentTime := fmt.Sprintf("Current server time is: %s", time.Now().Format(time.RFC1123))
+	return nil, &CurrentTimeOutput{Time: currentTime}, nil
+}
+
+type ListOldDownloadFile struct {
+	Name           string    `json:"name" jsonschema:"Name of the old file"`
+	LastModifyTime time.Time `json:"last_modify" jsonschema:"Last modify time of the file"`
+	Size           int64     `json:"size" jsonschema:"Size of the file in bytes"`
+}
+
+// ListOldDownloadsTool lists files in the Download directory that haven't been accessed in a long time.
+func ListOldDownloadsTool(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, *ListOldDownloadsOutput, error) {
+	downloadDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get user home directory: %w", err)
+	}
+
+	downloadDir = downloadDir + string(os.PathSeparator) + "Downloads"
+
+	files, err := os.ReadDir(downloadDir)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read Downloads directory: %w", err)
+	}
+
+	var oldFiles []ListOldDownloadFile
+
+	cutoff := time.Now().AddDate(0, -3, 0) // 3 months ago
+
+	for _, file := range files {
+		info, err := file.Info()
+		if err != nil {
+			continue
+		}
+
+		if info.ModTime().Before(cutoff) {
+			oldFiles = append(oldFiles, ListOldDownloadFile{
+				Name:           info.Name(),
+				LastModifyTime: info.ModTime(),
+				Size:           info.Size(),
+			})
+		}
+	}
+
+	return nil, &ListOldDownloadsOutput{
+		System: runtime.GOOS,
+		Files:  oldFiles,
+	}, nil
+}
+
 func main() {
 	// Create MCP server using the official SDK
 	server := mcp.NewServer(
@@ -252,6 +314,18 @@ func main() {
 		Name:        "get_ip_address",
 		Description: "Get the current computer's IP addresses, including all network interfaces and the primary IP address",
 	}, GetIPAddressTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "get_current_time",
+		Description: "Get the current server time in RFC1123 format",
+	}, GetCurrentTimeTool)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_old_downloads",
+		Description: "List files in the Download directory that haven't been modified in a long time.",
+	}, ListOldDownloadsTool)
+
+	log.Println("MCP server started (version:", version, "commit:", commit, "date:", date, "builtBy:", builtBy+")")
 
 	// Run the server over stdin/stdout
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {

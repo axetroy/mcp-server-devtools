@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "mcp-server-devtools": {
+      "command": "go",
+      "args": [
+        "run",
+        "cmd/mcp-devtools/main.go"
+      ],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}
