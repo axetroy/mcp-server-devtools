@@ -1,4 +1,4 @@
-module github.com/axetroy/mcp-devtools
+module github.com/axetroy/mcp-server-devtools
 
 go 1.23.0
 

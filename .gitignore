@@ -18,4 +18,4 @@
 dist
 
 # Built binary (in root only)
-/mcp-devtools
+/mcp-server-devtools

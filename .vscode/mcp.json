@@ -4,7 +4,7 @@
       "command": "go",
       "args": [
         "run",
-        "cmd/mcp-devtools/main.go"
+        "cmd/mcp-server-devtools/main.go"
       ],
       "cwd": "${workspaceFolder}"
     }

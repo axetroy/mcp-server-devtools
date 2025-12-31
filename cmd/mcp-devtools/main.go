@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/axetroy/mcp-devtools/internal/tools"
+	"github.com/axetroy/mcp-server-devtools/internal/tools"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -19,7 +19,7 @@ func main() {
 	// Create MCP server using the official SDK
 	server := mcp.NewServer(
 		&mcp.Implementation{
-			Name:    "mcp-devtools",
+			Name:    "mcp-server-devtools",
 			Version: version,
 		},
 		&mcp.ServerOptions{

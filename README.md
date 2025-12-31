@@ -1,8 +1,8 @@
-[![Build Status](https://github.com/axetroy/mcp-devtools/workflows/ci/badge.svg)](https://github.com/axetroy/mcp-devtools/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/axetroy/mcp-devtools)](https://goreportcard.com/report/github.com/axetroy/mcp-devtools)
-![Latest Version](https://img.shields.io/github/v/release/axetroy/mcp-devtools.svg)
-![License](https://img.shields.io/github/license/axetroy/mcp-devtools.svg)
-![Repo Size](https://img.shields.io/github/repo-size/axetroy/mcp-devtools.svg)
+[![Build Status](https://github.com/axetroy/mcp-server-devtools/workflows/ci/badge.svg)](https://github.com/axetroy/mcp-server-devtools/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/axetroy/mcp-server-devtools)](https://goreportcard.com/report/github.com/axetroy/mcp-server-devtools)
+![Latest Version](https://img.shields.io/github/v/release/axetroy/mcp-server-devtools.svg)
+![License](https://img.shields.io/github/license/axetroy/mcp-server-devtools.svg)
+![Repo Size](https://img.shields.io/github/repo-size/axetroy/mcp-server-devtools.svg)
 
 ## MCP DevTools
 
@@ -32,7 +32,7 @@ The MCP DevTools server communicates via the Model Context Protocol over stdin/s
 To use with an MCP client:
 
 ```bash
-mcp-devtools
+mcp-server-devtools
 ```
 
 The server will start and wait for MCP requests on stdin, sending responses to stdout.
@@ -108,23 +108,23 @@ Response:
 1. Shell (Mac/Linux)
 
    ```bash
-   curl -fsSL https://github.com/release-lab/install/raw/v1/install.sh | bash -s -- -r=axetroy/mcp-devtools -e=mcp-devtools
+   curl -fsSL https://github.com/release-lab/install/raw/v1/install.sh | bash -s -- -r=axetroy/mcp-server-devtools -e=mcp-server-devtools
    ```
 
 2. PowerShell (Windows):
 
    ```powershell
-   $r="axetroy/mcp-devtools";$e="mcp-devtools";iwr https://github.com/release-lab/install/raw/v1/install.ps1 -useb | iex
+   $r="axetroy/mcp-server-devtools";$e="mcp-server-devtools";iwr https://github.com/release-lab/install/raw/v1/install.ps1 -useb | iex
    ```
 
-3. [Github release page](https://github.com/axetroy/mcp-devtools/releases) (All platforms)
+3. [Github release page](https://github.com/axetroy/mcp-server-devtools/releases) (All platforms)
 
    download the executable file and put the executable file to `$PATH`
 
 4. Build and install from source using [Golang](https://golang.org) (All platforms)
 
    ```bash
-   go install github.com/axetroy/mcp-devtools/cmd/mcp-devtools@latest
+   go install github.com/axetroy/mcp-server-devtools/cmd/mcp-server-devtools@latest
    ```
 
 ### Development

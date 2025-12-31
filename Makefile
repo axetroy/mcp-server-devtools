@@ -11,4 +11,4 @@ format:
 	go fmt ./...
 
 format-check:
-	gofmt -l cmd/mcp-devtools/main.go
+	gofmt -l cmd/mcp-server-devtools/main.go

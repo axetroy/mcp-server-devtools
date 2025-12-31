@@ -1,6 +1,6 @@
 builds:
-  - binary: mcp-devtools
-    main: ./cmd/mcp-devtools/main.go
+  - binary: mcp-server-devtools
+    main: ./cmd/mcp-server-devtools/main.go
     goos:
       - windows
       - darwin
